@@ -1,0 +1,513 @@
+---
+title: "Research on departure delays and cancellations at NYC airpots in 2013"
+author: "Xianglong Tan"
+date: "3/12/2018"
+output:
+  html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,echo=FALSE,warning=FALSE,results='hide',message=FALSE}
+library(nycflights13)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+```
+# Relationship between departure delays and cancellations and weather at origin  
+
+## Data preparation  
+We left join flights and weather together and then split it into three data frames based on the origin.
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE,echo=FALSE}
+dcw<-left_join(flights,weather,by=c('origin','time_hour'))
+dcw$cancel<-factor(ifelse(is.na(dcw$arr_time),1,0),labels = c('not cancel','cancel'))
+dw_LGA<-subset(dcw,origin=='LGA')
+dw_EWR<-subset(dcw,origin=='EWR')
+dw_JFK<-subset(dcw,origin=='JFK')
+cw_LGA<-subset(dcw,origin=='LGA')
+cw_EWR<-subset(dcw,origin=='EWR')
+cw_JFK<-subset(dcw,origin=='JFK')
+```
+
+## Visualization 
+### Temperature
+#### LGA
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_LGA%>%group_by(temp)%>%summarise(dep_delay=mean(dep_delay,na.rm=TRUE)))+geom_jitter(aes(x=temp,y=dep_delay),alpha=0.7)+geom_smooth(aes(x=temp,y=dep_delay))
+ggplot(cw_LGA%>%group_by(temp,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=temp,y=cancellation_rate),alpha=0.4)+geom_smooth(aes(x=temp,y=cancellation_rate))
+```
+
+For flights whose origin is LGA, departure delays are positive correlated with temperature, and cancellations are not correlated with temperature.  
+
+
+  
+#### EWR:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_EWR%>%group_by(temp)%>%summarise(dep_delay=mean(dep_delay,na.rm=TRUE)))+geom_jitter(aes(x=temp,y=dep_delay),alpha=0.7)+geom_smooth(aes(x=temp,y=dep_delay))
+ggplot(cw_EWR%>%group_by(temp,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=temp,y=cancellation_rate),alpha=0.4)+geom_smooth(aes(x=temp,y=cancellation_rate))
+```
+  
+For flights whose origin is EWR, departure delays is positive correlated with temperature, and cancellations are more likely to happen when temperature is around 60F-65F.    
+
+#### JFK:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_JFK%>%group_by(temp)%>%summarise(dep_delay=mean(dep_delay,na.rm=TRUE)))+geom_jitter(aes(x=temp,y=dep_delay),alpha=0.7)+geom_smooth(aes(x=temp,y=dep_delay))
+ggplot(cw_JFK%>%group_by(temp,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=temp,y=cancellation_rate),alpha=0.4)+geom_smooth(aes(x=temp,y=cancellation_rate))
+```
+
+For flights whose origin is JFK, departure delays is positive correlated with temperature, and cancellations are most likely to happen when temperature is around 45F-48F. 
+
+### Relative Humidity
+#### LGA:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+dw_LGA$humid_group<-0
+for(i in 1:10){
+  dw_LGA$humid_group<-ifelse(dw_LGA$humid>quantile(dw_LGA$humid,i/10,na.rm = TRUE),i,dw_LGA$humid_group)
+}
+ggplot(dw_LGA%>%group_by(humid_group)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE))%>%mutate(humid=10*humid_group+10))+geom_point(aes(x=humid,y=dep_delay),alpha=0.4)+geom_line(aes(x=humid,y=dep_delay))
+cw_LGA$humid_group<-0
+for(i in 1:10){
+  cw_LGA$humid_group<-ifelse(cw_LGA$humid>quantile(cw_LGA$humid,i/10,na.rm = TRUE),i, cw_LGA$humid_group)
+}
+ggplot(cw_LGA%>%group_by(humid_group,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel))%>%mutate(humid=10*humid_group+10))+geom_point(aes(x=humid,y=cancellation_rate),alpha=0.4)+geom_line(aes(x=humid,y=cancellation_rate))
+```
+
+For flights whose origin is LGA, departure delays is slightly positive correlated with humidity, and cancellations are more likely to happen when relative humidity is higher.  
+  
+#### EWR:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+dw_EWR$humid_group<-0
+for(i in 1:10){
+  dw_EWR$humid_group<-ifelse(dw_EWR$humid>quantile(dw_EWR$humid,i/10,na.rm = TRUE),i,dw_EWR$humid_group)
+}
+ggplot(dw_EWR%>%group_by(humid_group)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE))%>%mutate(humid=10*humid_group+10))+geom_point(aes(x=humid,y=dep_delay),alpha=0.4)+geom_line(aes(x=humid,y=dep_delay))
+cw_EWR$humid_group<-0
+for(i in 1:10){
+  cw_EWR$humid_group<-ifelse(cw_EWR$humid>quantile(cw_EWR$humid,i/10,na.rm = TRUE),i, cw_EWR$humid_group)
+}
+ggplot(cw_EWR%>%group_by(humid_group,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel))%>%mutate(humid=10*humid_group+10))+geom_point(aes(x=humid,y=cancellation_rate),alpha=0.4)+geom_line(aes(x=humid,y=cancellation_rate))
+```
+
+For flights whose origin is EWR, departure delays is slightly positive correlated with humidity, and cancellations are more likely to happen when relative humidity is higher.
+  
+#### JFK:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+dw_JFK$humid_group<-0
+for(i in 1:10){
+  dw_JFK$humid_group<-ifelse(dw_JFK$humid>quantile(dw_JFK$humid,i/10,na.rm = T),i,dw_JFK$humid_group)
+}
+ggplot(dw_JFK%>%group_by(humid_group)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE))%>%mutate(humid=10*humid_group+10))+geom_point(aes(x=humid,y=dep_delay),alpha=0.4)+geom_line(aes(x=humid,y=dep_delay))
+cw_JFK$humid_group<-0
+for(i in 1:10){
+  cw_JFK$humid_group<-ifelse(cw_JFK$humid>quantile(cw_JFK$humid,i/10,na.rm = T),i, cw_JFK$humid_group)
+}
+ggplot(cw_JFK%>%group_by(humid_group,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel))%>%mutate(humid=10*humid_group+10))+geom_point(aes(x=humid,y=cancellation_rate),alpha=0.4)+geom_line(aes(x=humid,y=cancellation_rate))
+```
+
+For flights whose origin is JFK, departure delays is slightly positive correlated with humidity, and cancellations are not correlative with humidity.
+
+### Wind Direction (in degrees)
+#### LGA:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_LGA%>%group_by(wind_dir)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=wind_dir),alpha=0.4)+geom_line(aes(x=wind_dir,y=dep_delay))
+ggplot(cw_LGA%>%group_by(wind_dir,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=wind_dir,y=cancellation_rate),alpha=0.4)+geom_line(aes(x=wind_dir,y=cancellation_rate))
+```
+
+For flights whose origin is LGA, when the wind direction is in 100-200 degree, it's most likely to suffer from serious departure delay. When wind direction is in 300-350 degree, cancellations are more likely to happen.  
+
+#### EWR:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_EWR%>%group_by(wind_dir)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=wind_dir),alpha=0.4)+geom_line(aes(x=wind_dir,y=dep_delay))
+ggplot(cw_EWR%>%group_by(wind_dir,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=wind_dir,y=cancellation_rate),alpha=0.4)+geom_line(aes(x=wind_dir,y=cancellation_rate))
+```
+
+For flights whose origin is EWR, when the wind direction is in 100-150 degree, it's most likely to suffer from serious departure delay. Seems like wind direction has nothing to do with cancellation.
+
+#### JFK:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_JFK%>%group_by(wind_dir)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=wind_dir),alpha=0.4)+geom_line(aes(x=wind_dir,y=dep_delay))
+ggplot(cw_JFK%>%group_by(wind_dir,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=wind_dir,y=cancellation_rate),alpha=0.4)+geom_line(aes(x=wind_dir,y=cancellation_rate))
+```
+
+For flights whose origin is JFK, when the wind direction is in 100-150 degree, it's most likely to suffer from serious departure delay. When wind direction is in 25-75 degree, cancellations are more likely to happen.
+
+
+### Wind Speed
+#### Outliner
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE}
+ggplot(dcw)+geom_jitter(aes(y=dep_delay,x=wind_speed),alpha=0.2)
+```
+
+Graph above shows that there are few outliers where wind speed is over 1000. To make valid conclusion, I exclude these outliers in the following analysis.
+
+#### LGA:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_LGA%>%filter(wind_speed<800)%>%group_by(wind_speed)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=wind_speed))+stat_smooth(aes(x=wind_speed,y=dep_delay),method = 'lm')
+ggplot(cw_LGA%>%filter(wind_speed<800)%>%group_by(wind_speed,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=wind_speed,y=cancellation_rate))+geom_smooth(aes(x=wind_speed,y=cancellation_rate),method = 'lm')
+```
+
+For flights whose origin is LGA, when wind speed is below 25, it has no effect on departure delays. When wind speed is larger than 25, wind speed will increase departure delays. When wind speed is below 50, it nearly has nothing to do with cancellation.
+
+#### EWR:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_EWR%>%filter(wind_speed<800)%>%group_by(wind_speed)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=wind_speed))+stat_smooth(aes(x=wind_speed,y=dep_delay),method = 'lm')
+ggplot(cw_EWR%>%filter(wind_speed<800)%>%group_by(wind_speed,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=wind_speed,y=cancellation_rate))+geom_smooth(aes(x=wind_speed,y=cancellation_rate),method = 'lm')
+```
+
+For flights whose origin is EWR and wind speed less than 50, wind speed has very little effects on departure delays. When wind speed is below 50, it nearly has nothing to do with cancellation.
+
+
+
+#### JFK:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_JFK%>%filter(wind_speed<800)%>%group_by(wind_speed)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=wind_speed))+stat_smooth(aes(x=wind_speed,y=dep_delay),method = 'lm')
+ggplot(cw_JFK%>%filter(wind_speed<800)%>%group_by(wind_speed,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=wind_speed,y=cancellation_rate))+geom_smooth(aes(x=wind_speed,y=cancellation_rate),method = 'lm')
+```
+
+For flights whose origin is JFK and wind speed less than 50, wind speed is positive correlated with departure delays. When wind speed is larger than 20, cancellations are more likely to happen.
+
+### Gust speed
+#### Outliers
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dcw)+geom_jitter(aes(y=dep_delay,x=wind_gust),alpha=0.2)
+```
+
+Graph above shows that there are few outliers where gust speed is over 1000. To make valid conclusion, I exclude these outliers in the following analysis.
+
+#### LGA:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE}
+ggplot(dw_LGA%>%filter(wind_gust<800)%>%group_by(wind_gust)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=wind_gust))+stat_smooth(aes(x=wind_gust,y=dep_delay),method = 'lm')
+ggplot(cw_LGA%>%filter(wind_gust<800)%>%group_by(wind_gust,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=wind_gust,y=cancellation_rate))+geom_smooth(aes(x=wind_gust,y=cancellation_rate),method = 'lm')
+```
+
+For flights whose origin is LGA, when gust speed is below 30, it has no effect on departure delays. When gust speed is larger than 30, gust speed will increase departure delays. When gust speed is below 50, it nearly has nothing to do with cancellation.
+
+#### EWR:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_EWR%>%filter(wind_gust<800)%>%group_by(wind_gust)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=wind_gust))+stat_smooth(aes(x=wind_gust,y=dep_delay),method = 'lm')
+ggplot(cw_EWR%>%filter(wind_gust<800)%>%group_by(wind_gust,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=wind_gust,y=cancellation_rate))+geom_smooth(aes(x=wind_gust,y=cancellation_rate),method = 'lm')
+```
+
+For flights whose origin is EWR and wind speed less than 50, wind speed has very little effects on departure delays. When wind speed is below 50, it nearly has nothing to do with cancellation.
+
+#### JFK:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_JFK%>%filter(wind_gust<800)%>%group_by(wind_gust)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=wind_gust))+stat_smooth(aes(x=wind_gust,y=dep_delay),method = 'lm')
+ggplot(cw_JFK%>%filter(wind_gust<800)%>%group_by(wind_gust,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=wind_gust,y=cancellation_rate))+geom_smooth(aes(x=wind_gust,y=cancellation_rate),method = 'lm')
+```
+
+For flights whose origin is JFK and wind speed less than 50, wind speed is positive correlated with departure delays. When wind speed is larger than 20, cancellations are more likely to happen.
+
+
+
+### Precipitation
+#### Outliers
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dcw)+geom_jitter(aes(x=precip,y=dep_delay),alpha=0.2)
+```
+
+Graph above shows that there are few outliers where precipitation is over 1. To make valid conclusion, I exclude these outliers in the following analysis.
+
+#### LGA:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_LGA%>%filter(precip<0.6)%>%group_by(precip)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=precip))+stat_smooth(aes(x=precip,y=dep_delay),method = 'lm')
+ggplot(cw_LGA%>%filter(precip<0.6)%>%group_by(precip,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=precip,y=cancellation_rate))+geom_smooth(aes(x=precip,y=cancellation_rate),method = 'lm')
+```
+
+For flights whose origin is LGA, high precipitation will slightly increase departure delays, but seems like it has nothing to do with cancellation.
+
+#### EWR:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_EWR%>%filter(precip<0.6)%>%group_by(precip)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=precip))+stat_smooth(aes(x=precip,y=dep_delay),method = 'lm')
+ggplot(cw_EWR%>%filter(precip<0.6)%>%group_by(precip,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=precip,y=cancellation_rate))+geom_smooth(aes(x=precip,y=cancellation_rate),method = 'lm')
+```
+
+For flights whose origin is EWR, high average precipitation will slightly decrease departure delays, but seems like it has nothing to do with cancellation.
+
+#### JFK:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_JFK%>%filter(precip<0.6)%>%group_by(precip)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=precip))+stat_smooth(aes(x=precip,y=dep_delay),method = 'lm')
+ggplot(cw_JFK%>%filter(precip<0.6)%>%group_by(precip,cancel)%>%summarise(n=n())%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=precip,y=cancellation_rate))+geom_smooth(aes(x=precip,y=cancellation_rate),method = 'lm')
+```
+
+For flights whose origin is JFK, high average precipitation will slightly decrease departure delays, but seems like it has nothing to do with cancellation.
+
+
+### Sea Level Pressure
+#### LGA:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_LGA%>%group_by(pressure)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=pressure))+stat_smooth(aes(x=pressure,y=dep_delay))
+ggplot(cw_LGA%>%group_by(pressure,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=pressure,y=cancellation_rate))+geom_smooth(aes(x=pressure,y=cancellation_rate))
+```
+
+For flights whose origin is LGA, high average sea level pressure will slightly decrease departure delays, but seems like it has nothing to do with cancellation.
+
+#### EWR:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_EWR%>%group_by(pressure)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=pressure))+stat_smooth(aes(x=pressure,y=dep_delay))
+ggplot(cw_EWR%>%group_by(pressure,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(cancel+`not cancel`)))+geom_point(aes(x=pressure,y=cancellation_rate))+geom_smooth(aes(x=pressure,y=cancellation_rate))
+```
+
+For flights whose origin is EWR, when average sea level pressure is in 1020-1030, average departure delays are least, so is the average cancellation rate.
+
+#### JFK:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_JFK%>%group_by(pressure)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=pressure))+stat_smooth(aes(x=pressure,y=dep_delay))
+ggplot(cw_JFK%>%group_by(pressure,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=pressure,y=cancellation_rate))+geom_smooth(aes(x=pressure,y=cancellation_rate))
+```
+
+For flights whose origin is JFK, when sea level pressure is in 1020-1030, average departure delays are least, so is the average cancellation rate.
+
+
+### Visibility
+#### LGA:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_LGA%>%group_by(visib)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=visib))+stat_smooth(aes(x=visib,y=dep_delay),method = 'lm')
+ggplot(cw_LGA%>%group_by(visib,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=visib,y=cancellation_rate))+geom_smooth(aes(x=visib,y=cancellation_rate),method = 'lm')
+```
+
+For flights whose origin is JFK, high visibility will slightly decrease departure delays, and also decrease the probability of cancellation.
+
+#### EWR:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_EWR%>%group_by(visib)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=visib))+stat_smooth(aes(x=visib,y=dep_delay),method = 'lm')
+ggplot(cw_EWR%>%group_by(visib,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=visib,y=cancellation_rate))+geom_smooth(aes(x=visib,y=cancellation_rate),method = 'lm')
+```
+
+For flights whose origin is EWR, high visibility will slightly decrease departure delays, and also decrease the probability of cancellation.
+
+#### JFK:
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dw_JFK%>%group_by(visib)%>%summarise(dep_delay=mean(dep_delay,na.rm = TRUE)))+geom_point(aes(y=dep_delay,x=visib))+stat_smooth(aes(x=visib,y=dep_delay),method = 'lm')
+ggplot(cw_JFK%>%group_by(visib,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=visib,y=cancellation_rate))+geom_smooth(aes(x=visib,y=cancellation_rate),method = 'lm')
+```
+
+For flights whose origin is JFK, high visibility will slightly decrease departure delays, and also decrease the probability of cancellation.
+  
+##  Data Mining
+### Decision Tree
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+dcw$dep_delay_level<-0
+dcw$dep_delay_level<-ifelse(dcw$dep_delay>mean(dcw$dep_delay,na.rm = T),1,dcw$dep_delay_level)
+dcw$dep_delay_level<-factor(dcw$dep_delay_level,level=c(0,1),labels = c('no delay','delay'))
+dcw$origin<-factor(dcw$origin)
+dw<<-subset(dcw,is.na(dep_delay_level)==F)
+cw<<-dcw
+cw$cancel<-factor(cw$cancel)
+```
+#### Departure Delay
+Factorize departure delay into 2 levels, below-average departure delay and above-average departure delay, corresponding to no delay to delay respectively.
+```{r fig.height=6, fig.width=8, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+# Dicision Tree
+library(C50)
+x<<-c('temp','dewp','humid','wind_dir','wind_speed','wind_gust','precip','pressure','visib')
+dw_tree<<-C5.0(x=dw[x],y=dw$dep_delay_level,control = C5.0Control(winnow = TRUE,minCases = 2410,noGlobalPruning = T))
+plot(dw_tree)
+#test<-predict(dw_tree,newdata = dw[,x])
+#summary(test)
+```  
+  
+#### Cancel 
+```{r fig.height=6, fig.width=8, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+# Dicision Tree
+library(C50)
+cw_tree<<-C5.0(x=cw[x],y=cw$cancel,control = C5.0Control(winnow = T,minCases = 220,noGlobalPruning = T))
+plot(cw_tree)
+#test<-predict(cw_tree,newdata = cw[,x])
+#summary(test)
+```  
+
+### Neural Network
+```{r fig.height=6, fig.width=6, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+dcw$dep_delay_level<-0
+dcw$dep_delay_level<-ifelse(dcw$dep_delay>mean(dcw$dep_delay,na.rm = T),1,dcw$dep_delay_level)
+dcw$dep_delay_level<-factor(dcw$dep_delay_level)
+dcw$origin<-factor(dcw$origin)
+dw=subset(dcw,is.na(dep_delay_level)==F)
+```
+#### Departure Delay
+```{r fig.height=6, fig.width=8, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+x<-c('temp','dewp','humid','wind_dir','wind_speed','wind_gust','precip','pressure','visib')
+y<-'dep_delay_level'
+library(caret)
+library(nnet)
+library(NeuralNetTools)
+dw$dep_delay_level<-class.ind(dw$dep_delay_level)
+dw_nn<-subset(dw,is.na(dw[x])==F)[c(x,y)]
+model_nn_dw<<-nnet(dep_delay_level~.,data=dw_nn,size=7,decay=0.01,maxit=500)
+plotnet(model_nn_dw)
+#test<-predict(model_nn_dw)
+#summary(test)
+```
+
+#### Cancel
+```{r fig.height=6, fig.width=8, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+x<-c('temp','dewp','humid','wind_dir','wind_speed','wind_gust','precip','pressure','visib')
+y<-'cancel'
+library(caret)
+library(nnet)
+library(NeuralNetTools)
+cw_nn<-subset(cw,is.na(dw[x])==F)[c(x,y)]
+model_nn_cw<<-nnet(cancel~.,data=cw_nn,size=6,decay=0.1,maxit=500)
+plotnet(model_nn_cw)
+#test<-predict(model_nn_cw)
+#summary(test)
+```
+### Prediction with Neural Network
+```{r,echo=F,results='hold'}
+library(shiny)
+library(C50)
+library(nnet)
+server<-shinyServer(function(input,output){
+  data<-reactive({
+    data.frame(
+      Name=c('temp','dewp','humid','wind_dir','wind_speed','wind_gust','precip','pressure','visib'),
+      Value=c(input$temp,input$dewp,input$humid,input$winddir,input$windspeed,input$windgust,input$precip,input$pressure,input$visib))
+  })
+  output$inputdata<-renderTable({
+    data()
+  })
+  observe({
+  newdata_tree<-data.frame(t(c(input$temp,input$dewp,input$humid,input$winddir,input$windspeed,input$windgust,input$precip,input$pressure,input$visib)))
+  names(newdata_tree)<-c('temp','dewp','humid','wind_dir','wind_speed','wind_gust','precip','pressure','visib')
+  observeEvent(input$predict,{
+  output$newdata_tree<-renderTable(newdata_tree)
+  output$pre_tree_dw<-renderPrint(paste('delay predicted by decision tree: ',predict(dw_tree,newdata = newdata_tree),sep = ''))
+  output$pre_nn_dw<-renderPrint(paste('delay predicted by neural network: ',predict(model_nn_dw,newdata = newdata_tree),sep = '')) 
+  output$pre_tree_cw<-renderPrint(paste('cancel predicted by decision tree: ',predict(cw_tree,newdata = newdata_tree),sep = ''))
+  output$pre_nn_cw<-renderPrint(paste('cancel predicted by neural network: ',predict(model_nn_cw,newdata = newdata_tree),sep = ''))
+    })
+  })  
+})
+ui<-shinyUI(pageWithSidebar(
+  headerPanel('Predict probability of delay and cancellation'),
+  sidebarPanel(
+    sliderInput('temp','temp:',min=min(dcw$temp,na.rm = T),
+                max=max(dcw$temp,na.rm = T),
+                value=median(dcw$temp,na.rm = T)),
+    sliderInput('dewp','dewp:',min=min(dcw$dewp,na.rm = T),
+                max=max(dcw$dewp,na.rm = T),
+                value = median(dcw$dewp,na.rm = T)),
+    sliderInput('humid','humid:',min=min(dcw$humid,na.rm = T),
+                max=max(dcw$humid,na.rm = T),
+                value=median(dcw$humid,na.rm = T)),
+    sliderInput('winddir','wind direction:',
+                min=min(dcw$wind_dir,na.rm = T),
+                max=max(dcw$wind_dir,na.rm=T),
+                value=median(dcw$wind_dir,na.rm = T),
+                step = 10),
+    sliderInput('windspeed','wind speed:',
+                min=min(dcw$wind_speed,na.rm = T),
+                max=max(dcw$wind_speed,na.rm = T),
+                value = median(dcw$wind_speed,na.rm = T)),
+    sliderInput('windgust','wind gust speed:',
+                min=min(dcw$wind_gust,na.rm = T),
+                max=max(dcw$wind_gust,na.rm = T),
+                value = median(dcw$wind_gust,na.rm = T)),
+    sliderInput('precip','precipitation:',
+                min=min(dcw$precip,na.rm = T),
+                max=max(dcw$precip,na.rm = T),
+                value = median(dcw$precip,na.rm = T)),
+    sliderInput('pressure','pressure:',
+                min=min(dcw$pressure,na.rm = T),
+                max=max(dcw$pressure,na.rm = T),
+                value = median(dcw$pressure,na.rm = T)),
+    sliderInput('visib','visibility:',
+                min=min(dcw$visib,na.rm = T),
+                max=max(dcw$visib,na.rm = T),
+                value = median(dcw$visib,na.rm = T))
+  ),
+  mainPanel(
+    h3(textOutput('delay probability')),
+    tableOutput('inputdata'),
+    actionButton('predict',label='Predcition'),
+    tableOutput('newdata_tree'),
+    textOutput('pre_tree_dw'),
+    textOutput('pre_nn_dw'),
+    textOutput('pre_tree_cw'),
+    textOutput('pre_nn_cw')
+  )
+))
+
+shinyApp(ui=ui, server=server)
+```
+
+
+
+# Relationship between Departure Delays and Cancellations and Time  
+## Data Preparation
+```{r fig.height=6, fig.width=8, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+library(lubridate)
+dct<-flights
+dct$cancel<-factor(ifelse(is.na(dct$arr_time)==T,1,0),labels = c('not cancel','cancel'))
+dct$td<-hour(dct$time_hour)
+dct$dw<-wday(dct$time_hour,label = T,abbr = F)
+dct$my<-month(dct$time_hour,label = T,abbr = T)
+dct_LGA=subset(dct,origin=='LGA')
+dct_EWR=subset(dct,origin=='EWR')
+dct_JFK=subset(dct,origin=='JFK')
+```
+## Visualization
+### Time of Day
+#### LGA
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dct_LGA%>%group_by(td)%>%summarize(dep_delay=mean(dep_delay,na.rm=T)))+geom_point(aes(x=td,y=dep_delay),alpha=0.5)+geom_line(aes(x=td,y=dep_delay))
+ggplot(dct_LGA%>%group_by(td,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=td,y=cancellation_rate),alpha=0.5)+geom_line(aes(x=td,y=cancellation_rate))
+```
+#### EWR
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dct_EWR%>%group_by(td)%>%summarize(dep_delay=mean(dep_delay,na.rm=T)))+geom_point(aes(x=td,y=dep_delay),alpha=0.5)+geom_line(aes(x=td,y=dep_delay))
+ggplot(dct_EWR%>%group_by(td,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=td,y=cancellation_rate),alpha=0.5)+geom_line(aes(x=td,y=cancellation_rate))
+```
+#### JFK
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dct_JFK%>%group_by(td)%>%summarize(dep_delay=mean(dep_delay,na.rm=T)))+geom_point(aes(x=td,y=dep_delay),alpha=0.5)+geom_line(aes(x=td,y=dep_delay))
+ggplot(dct_JFK%>%group_by(td,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_point(aes(x=td,y=cancellation_rate),alpha=0.5)+geom_line(aes(x=td,y=cancellation_rate))
+```
+
+### Day of Week
+#### LGA
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dct_LGA%>%group_by(dw)%>%summarize(dep_delay=mean(dep_delay,na.rm=T)))+geom_col(aes(x=dw,y=dep_delay))
+ggplot(dct_LGA%>%group_by(dw,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_col(aes(x=dw,y=cancellation_rate))
+```
+
+#### EWR
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dct_EWR%>%group_by(dw)%>%summarize(dep_delay=mean(dep_delay,na.rm=T)))+geom_col(aes(x=dw,y=dep_delay))
+ggplot(dct_EWR%>%group_by(dw,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_col(aes(x=dw,y=cancellation_rate))
+```
+
+#### JFK
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dct_JFK%>%group_by(dw)%>%summarize(dep_delay=mean(dep_delay,na.rm=T)))+geom_col(aes(x=dw,y=dep_delay))
+ggplot(dct_JFK%>%group_by(dw,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_col(aes(x=dw,y=cancellation_rate))
+```
+
+### Month of Year
+#### LGA
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dct_LGA%>%group_by(my)%>%summarize(dep_delay=mean(dep_delay,na.rm=T)))+geom_col(aes(x=my,y=dep_delay))
+ggplot(dct_LGA%>%group_by(my,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_col(aes(x=my,y=cancellation_rate))
+```
+
+#### EWR
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dct_EWR%>%group_by(my)%>%summarize(dep_delay=mean(dep_delay,na.rm=T)))+geom_col(aes(x=my,y=dep_delay))
+ggplot(dct_EWR%>%group_by(my,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_col(aes(x=my,y=cancellation_rate))
+```
+
+
+#### JFK
+```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE,echo=FALSE,results='hold'}
+ggplot(dct_JFK%>%group_by(my)%>%summarize(dep_delay=mean(dep_delay,na.rm=T)))+geom_col(aes(x=my,y=dep_delay))
+ggplot(dct_JFK%>%group_by(my,cancel)%>%summarise(n=n() )%>%spread(key=cancel,value=n)%>%mutate(cancellation_rate=cancel/(`not cancel`+cancel)))+geom_col(aes(x=my,y=cancellation_rate))
+```
+
+
+
+
+
